@@ -1,30 +1,30 @@
 # backend/app/core/security.py
 from datetime import datetime, timedelta
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 
-from jose import jwt
+import jwt
 from passlib.context import CryptContext
-
 from app.config.settings import settings
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    Verify that a plain password matches the hashed version
-    """
-    return pwd_context.verify(plain_password, hashed_password)
+# JWT token related functions
+ALGORITHM = "HS256"
 
-def get_password_hash(password: str) -> str:
+def create_access_token(
+    subject: Union[str, Any], 
+    expires_delta: Optional[timedelta] = None
+) -> str:
     """
-    Create a password hash using bcrypt
-    """
-    return pwd_context.hash(password)
-
-def create_access_token(subject: Union[str, Any], expires_delta: Optional[timedelta] = None) -> str:
-    """
-    Create a JWT access token
+    Create a JWT access token.
+    
+    Args:
+        subject: Token subject (typically user ID)
+        expires_delta: Token expiration time
+        
+    Returns:
+        JWT token string
     """
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -33,8 +33,41 @@ def create_access_token(subject: Union[str, Any], expires_delta: Optional[timede
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode = {
+        "exp": expire, 
+        "sub": str(subject),
+        "iat": datetime.utcnow(),
+    }
+    
     encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+        to_encode, 
+        settings.SECRET_KEY, 
+        algorithm=ALGORITHM
     )
+    
     return encoded_jwt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify a password against a hash.
+    
+    Args:
+        plain_password: Plain text password
+        hashed_password: Hashed password
+        
+    Returns:
+        True if the password matches, False otherwise
+    """
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    """
+    Hash a password.
+    
+    Args:
+        password: Plain text password
+        
+    Returns:
+        Hashed password
+    """
+    return pwd_context.hash(password)
